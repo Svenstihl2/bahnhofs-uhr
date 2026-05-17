@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahnhofs-Kiosk-Display</title>
+
+    <style>
+        /* Verhindert Scrollbalken und nutzt den vollen Bildschirm */
+        body {
+            margin: 0;
+            padding: 20px; /* Leicht verringert für noch mehr Platz */
+            background-color: rgb(94, 92, 92); /* Dein augenschonendes Dunkelgrau */
+            font-family: "arial", sans-serif;
+            display: flex;
+            gap: 30px; /* Abstand zwischen Anzeigetafel und Uhr */
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden; /* Perfekt für den Kiosk-Modus */
+        }
+
+        /* Container für die linke Live-Abfahrtstafel (Exakt 50%) */
+        .anzeige-bereich {
+            flex: 1; 
+            height: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 4px solid #1a1a1a;
+        }
+
+        /* Das iFrame füllt den Bereich komplett aus */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Container für die rechte Uhr-Seite (Exakt 50%) */
+        .uhr-bereich {
+            flex: 1; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Zentriert die riesige Uhr perfekt vertikal */
+        }
+
+        /* Der blaue Rahmen und der graue Hintergrund der Uhr */
+        .uhr-container {
+            position: relative;
+            background-color: rgb(204, 196, 196); /* Ziffernblatt-Grau */
+            border: 18px solid rgb(6, 6, 168);   /* Rahmen dicker gemacht für die Riesen-Uhr */
+            border-radius: 40px;
+            padding: 20px;
+            display: inline-block;
+        }
+
+        /* HIER WURDE DIE GRÖSSE GEÄNDERT: Von 680px auf 800px erhöht */
+        object {
+            width: 800px;  
+            height: 800px;
+            display: block;
+        }
+
+        /* HIER WURDE DAS LOGO ANGEPASST: Weiter nach unten verschoben und leicht vergrößert */
+        .uhr-logo {
+            position: absolute;
+            top: 155px; /* Exakte Höhe bei einer 800px Uhr, damit es perfekt unter der 12 sitzt */
+            left: 50%;
+            transform: translateX(-50%); 
+            height: 52px; /* Größer skaliert, passend zur wuchtigen Uhr */
+            background-color: rgb(204, 196, 196); 
+            z-index: 10; 
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LINKS: Die originale DB-Tafel (wird im Kiosk über dein Addon geladen) -->
+    <div class="anzeige-bereich">
+        <iframe src="https://iris.noncd.db.de/wbt/js/index.html?impressum=0&termsofuse=0&typ=ab&style=ab&zeilen=10&bhf=8000016"></iframe>
+    </div>
+
+    <!-- RECHTS: Deine maximal vergrößerte Uhr -->
+    <div class="uhr-bereich">
+        <div class="uhr-container">
+            <img id="logo-0-0" alt="Logo Bahn" class="uhr-logo" src="image/Logo.gif">
+
+            <object type="image/svg+xml" data="image/stationclock.svg">
+                <param name="dial"               value="din41091.1"/>
+                <param name="hourHand"           value="german"/>
+                <param name="minuteHand"         value="german"/>
+                <param name="secondHand"         value="german"/>
+                <param name="axisCover"          value="circle"/>
+                <param name="minuteHandBehavior" value="stepping"/>
+                <param name="secondHandBehavior" value="swinging"/>
+                <param name="secondHandStopTime" value="1.5"/>
+                <param name="backgroundColor"    value="transparent"/>
+                <param name="dialColor"          value="#212121"/>
+                <param name="hourHandColor"      value="#212121"/>
+                <param name="minuteHandColor"    value="#212121"/>
+                <param name="secondHandColor"    value="#d11e00"/>
+                <param name="axisCoverColor"     value="#232323"/>
+                <param name="axisCoverRadius"    value="8"/>
+                <param name="shadowOpacity"      value="0.5"/>
+                <param name="shadowOffsetX"      value="3"/>
+                <param name="shadowOffsetY"      value="3"/>
+                <param name="shadowBlurring"     value="1"/>
+            </object>
+        </div>
+    </div>
+
+</body>
+</html>

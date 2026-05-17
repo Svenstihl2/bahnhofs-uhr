@@ -1,0 +1,814 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+    stationclock.svg
+
+    Copyright (c) 2020 Rüdiger Appel
+    Licensed under the creative common license.
+
+    Version: 2.1
+    Date:    2025/07/13
+    Home:    ludi.de
+-->
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:ev="http://www.w3.org/2001/xml-events"
+     version="1.1"
+     baseProfile="full"
+     width="100%"
+     height="100%"
+     viewBox="0 0 200 200">
+
+  <defs>
+
+    <script type="text/javascript">
+    <![CDATA[
+
+      var clock = {
+
+        options: {
+          dial               : "bauhaus",
+          hourHand           : "german",
+          minuteHand         : "german",
+          secondHand         : "german",
+          axisCover          : "circle",
+          minuteHandBehavior : "stepping",
+          secondHandBehavior : "swinging",
+          secondHandStopTime : 1.5,
+          backgroundColor    : "",
+          dialColor          : "#505050",
+          hourHandColor      : "#212121",
+          minuteHandColor    : "#212121",
+          secondHandColor    : "#d11e00",
+          axisCoverColor     : "#232323",
+          axisCoverRadius    : 9,
+          shadowOpacity      : 0.5,
+          shadowOffsetX      : 3,
+          shadowOffsetY      : 3,
+          shadowBlurring     : 1
+        },
+
+        timerId: undefined,
+
+        elements: {
+          dial       : ['Bauhaus', 'Austria', 'Vienna', 'Points', 'Din41091.1', 'Din41091.3', 'Din41091.4', 'RomanNumerals', 'Palmerstone', 'Aubigny', 'Wandelhalle'],
+          hourHand   : ['Bauhaus', 'German', 'Siemens', 'Siemens2', 'Din41092.3', 'BigBang', 'Wandelhalle', 
+                        'ZurichEnge', 'Ottensen', 'NewYork', 'Samurai', 'Westminster', 'Aubigny', 'Vienna', 'Palmerstone'],
+          minuteHand : ['Bauhaus', 'German', 'Siemens', 'Siemens2', 'Din41092.3', 'BigBang', 'Wandelhalle', 
+                        'ZurichEnge', 'Ottensen', 'NewYork', 'Samurai', 'Westminster', 'Aubigny', 'Vienna', 'Palmerstone'],
+          secondHand : ['Bar', 'Bauhaus', 'German', 'Din41071.1', 'Din41071.2', 'BigBang', 'Wandelhalle', 'Samurai', 'Swiss'],
+          axisCover  : ['Circle', 'Hexagon', 'Octagon']
+        },
+
+        initialize: function() {
+          const setOptionValue = (name, value) => {
+            const val = ['secondHandStopTime', 'axisCoverRadius', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY', 'shadowBlurring']
+                        .includes(name) ? this.parseNumber(value, 0) : value
+            this.options[name] = val               
+          }
+
+          if (this.timerId) {
+            window.clearInterval(this.timerId)
+          }
+          
+          if (document.getElementById('background') &&
+              document.getElementById('dial') &&
+              document.getElementById('hourHand') &&
+              document.getElementById('minuteHand') &&
+              document.getElementById('secondHand') &&
+              document.getElementById('axisCover')) {
+
+            // initialize options via url
+            const href = document.defaultView.location.href
+            if (href.indexOf('?') != -1) {
+              const params = href.split('?')[1].split(/&|;/)
+              for (var param of params) {
+                const keyValue = param.split('=')
+                setOptionValue(unescape(keyValue[0]), unescape(keyValue[1]))
+              }
+            }
+
+            // initialize options via parameter
+            if (document.defaultView.frameElement) {
+              const params = document.defaultView.frameElement.getElementsByTagName('param')
+              for (var param of params) {
+                setOptionValue(param.name, param.value)
+              }
+            }          
+            
+            for (var element of ['background', 'dial', 'hourHand', 'minuteHand', 'secondHand', 'axisCover']) {
+              this.setColor(element, this.options[element + 'Color'])
+            }
+            for (var element of ['dial', 'hourHand', 'minuteHand', 'secondHand', 'axisCover']) {
+              this.setElement(element, this.options[element])
+            }
+            this.setAxisCoverRadius(this.options.axisCoverRadius)
+            this.setShadow(this.options.shadowOpacity,
+                           this.options.shadowOffsetX,
+                           this.options.shadowOffsetY,
+                           this.options.shadowBlurring)
+
+            this.draw()
+            this.showElement('clock', true)
+
+            this.timerId = window.setInterval(() => { this.draw() }, 25)
+          } else {
+            window.setTimeout(()  => { this.initialize() }, 10)
+          }
+        },
+
+        draw: function() {
+          const now     = new Date()
+          const hours   = now.getHours()
+          const minutes = now.getMinutes()
+          var   seconds = now.getSeconds()
+          var   millis  = now.getMilliseconds()
+
+          this.rotateElement('hourHand', 30 * hours + 0.5 * minutes)
+          this.rotateElement('minuteHand', 6 * minutes + (this.options.minuteHandBehavior === 'sweeping' ? 0.1 * seconds : 0))
+
+          const fact = 60 / (60 - Math.min(30, Math.max(0, this.parseNumber(this.options.secondHandStopTime, 5))))
+          const time = Math.min(60000, fact * (1000 * seconds + millis))
+          seconds = Math.floor(time / 1000)
+          millis  = time % 1000
+
+          var secondAngle = 6 * seconds
+          if (this.options.secondHandBehavior === 'sweeping') {
+            secondAngle += 0.006 * millis
+          } else if (this.options.secondHandBehavior === 'swinging') {
+            secondAngle += 3 * (1 + Math.cos(Math.PI + Math.PI * (0.001 * millis)))
+          }
+          this.rotateElement('secondHand', secondAngle)
+        },
+
+        setColor: function(name, color) {
+          const element = document.getElementById(name)
+          if (element && color) {
+            element.setAttribute('style', 'fill:' + color + '; stroke:' + color)
+            this.options[name + 'Color'] = color
+          }
+        },
+
+        setElement: function(name, value) {
+          this.options[name] = 'none'
+          for (var element of this.elements[name]) {
+            if (element === this.capitalize(value)) {
+              this.showElement(name + element, true)
+              this.options[name] = value
+            } else {
+              this.showElement(name + element, false)
+            }
+          }
+        },
+
+        setAxisCoverRadius: function(value) {
+          const makePoints = function(sides, radius) {
+            var angle  = 2 * Math.PI / (sides * 2)
+            var points = ''
+            for (var i = 0; i < sides; i++) {
+              points += (100 + radius * Math.sin(angle)) + ',' + (100 + radius * Math.cos(angle)) + ' '
+              angle  += 2 * Math.PI / sides
+            }
+            return points
+          }
+          this.options.axisCoverRadius = this.parseNumber(value, 0)
+          document.getElementById('axisCoverCircle').setAttribute('r', this.options.axisCoverRadius)
+          document.getElementById('axisCoverHexagon').setAttribute('points', makePoints(6, this.options.axisCoverRadius))
+          document.getElementById('axisCoverOctagon').setAttribute('points', makePoints(8, this.options.axisCoverRadius))
+        },
+
+        setShadow: function(opacity, offsetX, offsetY, blurring) {
+          const setAttributes = (name, height) => {
+            document.getElementById(name).setAttribute('opacity', Math.max(0, Math.min(1, opacity)))
+            document.getElementById(name).setAttribute('transform', 'translate(' + offsetX * height + ',' + offsetY * height + ')')
+          }
+          this.options.shadowOpacity  = Math.round((opacity + Number.EPSILON) * 100) / 100
+          this.options.shadowOffsetX  = offsetX
+          this.options.shadowOffsetY  = offsetY
+          this.options.shadowBlurring = blurring
+          setAttributes('shadowHourHand', 0.5)
+          setAttributes('shadowMinuteHand', 0.75)
+          setAttributes('shadowSecondHand', 1)
+          document.getElementById('shadowBlurring').setAttribute('stdDeviation', Math.max(0.001, blurring))
+        },
+
+        showElement: function(id, visible) {
+          document.getElementById(id).setAttribute('visibility', visible ? 'visible' : 'hidden')
+        },
+
+        rotateElement: function(id, angle) {
+          document.getElementById(id).setAttribute('transform', 'rotate(' + angle + ', 100, 100)')
+        },
+
+        parseNumber: function(value, defaultValue) {
+          const result = parseFloat(value)
+          return isNaN(result) ? defaultValue : result
+        },
+
+        capitalize: function(string) {
+          return string && string[0].toUpperCase() + string.slice(1)
+        }
+
+      }
+
+      clock.initialize() 
+
+    ]]>
+    </script>
+
+    <!-- visible clock circle -->
+    <clipPath id="clipCircle">
+      <circle cx="100" cy="100" r="100"/>
+    </clipPath>
+
+    <!-- drop shadow filter -->
+    <filter id="dropShadow" x="-0.5" width="200%">
+      <feGaussianBlur id="shadowBlurring" in="SourceAlpha" stdDeviation="2" />
+    </filter>
+
+      <!-- minute stroke (palmerstone) -->
+    <symbol id="minuteStrokePalmerstone">
+      <path d="M 97.5 5 C 99 5 99 12 97.5 12 L 102.5 12 C 101 12 101 5 102.5 5 Z" style="stroke:none"/>
+    </symbol>
+
+    <!-- hour stroke (palmerstone) -->
+    <symbol id="hourStrokePalmerstone">
+      <path d="M 96.5 5 C 99 5 99 12 96.5 12 L 103.5 12 C 101 12 101 5 103.5 5 Z" style="stroke:none"/>
+      <path d="M 95 16 C 99 16 99 26 95 26 L 95 28 C 99 28 99 38 95 38 L 105 38 C 101 38 101 28 105 28 L 105 26 C 101 26 101 16 105 16 Z" style="stroke:none"/>
+    </symbol>
+
+    <!-- five minutes strokes (palmerstone) -->
+    <symbol id="fiveMinutesStrokesPalmerstone">
+      <use xlink:href="#hourStrokePalmerstone"/>
+      <use xlink:href="#minuteStrokePalmerstone" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokePalmerstone" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokePalmerstone" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokePalmerstone" transform="rotate(24, 100, 100)"/>
+    </symbol>
+
+    <!-- quarter strokes (palmerstone) -->
+    <symbol id="quarterStrokesPalmerstone">
+      <use xlink:href="#fiveMinutesStrokesPalmerstone"/>
+      <use xlink:href="#fiveMinutesStrokesPalmerstone" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#fiveMinutesStrokesPalmerstone" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+
+    <!-- minute stroke (bauhaus) -->
+    <symbol id="minuteStrokeBauhaus">
+      <rect x="98.5" y="0" width="3" height="7.5"/>
+    </symbol>
+
+    <!-- hour stroke (bauhaus) -->
+    <symbol id="hourStrokeBauhaus">
+      <rect x="96.25" y="0" width="7.5" height="25"/>
+    </symbol>
+
+    <!-- minute stroke (bauhaus) -->
+    <symbol id="minuteStrokeBauhaus">
+      <rect x="98.5" y="0" width="3" height="7.5"/>
+    </symbol>
+
+    <!-- five minutes strokes (bauhaus) -->
+    <symbol id="fiveMinutesStrokesBauhaus">
+      <use xlink:href="#hourStrokeBauhaus"/>
+      <use xlink:href="#minuteStrokeBauhaus" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeBauhaus" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeBauhaus" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeBauhaus" transform="rotate(24, 100, 100)"/>
+    </symbol>
+
+    <!-- quarter strokes (bauhaus) -->
+    <symbol id="quarterStrokesBauhaus">
+      <use xlink:href="#fiveMinutesStrokesBauhaus"/>
+      <use xlink:href="#fiveMinutesStrokesBauhaus" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#fiveMinutesStrokesBauhaus" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+    <!-- hour stroke (austria) -->
+    <symbol id="hourStrokeAustria">
+      <polygon points="104,0 96,0 97,22 103,22"/>
+    </symbol>
+
+    <!-- minute stroke (austria) -->
+    <symbol id="minuteStrokeAustria">
+      <rect x="98.8" y="0" width="2.4" height="7.5"/>
+    </symbol>
+
+    <!-- five minutes strokes (austria) -->
+    <symbol id="fiveMinutesStrokesAustria">
+      <use xlink:href="#hourStrokeAustria"/>
+      <use xlink:href="#minuteStrokeAustria" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeAustria" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeAustria" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeAustria" transform="rotate(24, 100, 100)"/>
+    </symbol>
+
+    <!-- quarter strokes (austria) -->
+    <symbol id="quarterStrokesAustria">
+      <use xlink:href="#fiveMinutesStrokesAustria"/>
+      <use xlink:href="#fiveMinutesStrokesAustria" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#fiveMinutesStrokesAustria" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+    <!-- minute stroke (vienna) -->
+    <symbol id="minuteStrokeVienna">
+      <circle cx="100" cy="3.1" r="3"/>
+    </symbol>
+
+    <!-- hour stroke (vienna) -->
+    <symbol id="hourStrokeVienna">
+      <circle cx="100" cy="3.1" r="3"/>
+      <polygon points="96.9,3.1 103.1,3.1 106,15 100,22 94,15" />
+    </symbol>
+
+    <!-- three hour stroke (vienna) -->
+    <symbol id="threeHourStrokeVienna">
+      <circle cx="100" cy="3.1" r="3"/>
+      <polygon points="96.9,3.1 103.1,3.1 110,30 100,40 90,30" />
+    </symbol>
+
+    <!-- quarter strokes (vienna) -->
+    <symbol id="quarterStrokesVienna">
+      <use xlink:href="#threeHourStrokeVienna"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(24, 100, 100)"/>
+      <use xlink:href="#hourStrokeVienna"   transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(36, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(42, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(48, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(54, 100, 100)"/>
+      <use xlink:href="#hourStrokeVienna"   transform="rotate(60, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(66, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(72, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(78, 100, 100)"/>
+      <use xlink:href="#minuteStrokeVienna" transform="rotate(84, 100, 100)"/>
+    </symbol>
+
+    <!-- three hour stroke (points) -->
+    <symbol id="threeHourStrokePoints">
+      <circle cx="100" cy="9" r="9"/>
+    </symbol>
+
+    <!-- hour stroke (points) -->
+    <symbol id="hourStrokePoints">
+      <circle cx="100" cy="6" r="6"/>
+    </symbol>
+
+    <!-- quarter strokes (points) -->
+    <symbol id="quarterStrokesPoints">
+      <use xlink:href="#threeHourStrokePoints"/>
+      <use xlink:href="#hourStrokePoints" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#hourStrokePoints" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+    <!-- three hour stroke (Din 41091.1) -->
+    <symbol id="threeHourStrokeDin41091.1">
+      <rect x="95.8" y="0" width="8.4" height="30"/>
+    </symbol>
+
+    <!-- hour stroke (Din 41091.1) -->
+    <symbol id="hourStrokeDin41091.1">
+      <rect x="95.8" y="0" width="8.4" height="24"/>
+    </symbol>
+
+    <!-- minute stroke (Din 41091.1) -->
+    <symbol id="minuteStrokeDin41091.1">
+      <rect x="98.2" y="0" width="3.6" height="8"/>
+    </symbol>
+
+    <!-- quarter strokes (Din 41091.1) -->
+    <symbol id="quarterStrokesDin41091.1">
+      <use xlink:href="#threeHourStrokeDin41091.1"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(24, 100, 100)"/>
+      <use xlink:href="#hourStrokeDin41091.1"   transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(36, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(42, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(48, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(54, 100, 100)"/>
+      <use xlink:href="#hourStrokeDin41091.1"   transform="rotate(60, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(66, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(72, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(78, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.1" transform="rotate(84, 100, 100)"/>
+    </symbol>
+
+    <!-- three hour stroke (Din 41091.3) -->
+    <symbol id="threeHourStrokeDin41091.3">
+      <rect x="94" y="0" width="12" height="30"/>
+    </symbol>
+
+    <!-- hour stroke (Din 41091.3) -->
+    <symbol id="hourStrokeDin41091.3">
+      <rect x="95" y="0" width="10" height="26"/>
+    </symbol>
+
+    <!-- quarter strokes (Din 41091.3) -->
+    <symbol id="quarterStrokesDin41091.3">
+      <use xlink:href="#threeHourStrokeDin41091.3"/>
+      <use xlink:href="#hourStrokeDin41091.3" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#hourStrokeDin41091.3" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+    <!-- hour stroke (Din 41091.4) -->
+    <symbol id="hourStrokeDin41091.4">
+      <rect x="97" y="0" width="6" height="7"/>
+    </symbol>
+
+    <!-- minute stroke (Din 41091.4) -->
+    <symbol id="minuteStrokeDin41091.4">
+      <rect x="98.75" y="0" width="2.5" height="7"/>
+    </symbol>
+
+    <!-- five minutes strokes (Din 41091.4) -->
+    <symbol id="fiveMinutesStrokesDin41091.4">
+      <use xlink:href="#hourStrokeDin41091.4"/>
+      <use xlink:href="#minuteStrokeDin41091.4" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.4" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.4" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeDin41091.4" transform="rotate(24, 100, 100)"/>
+    </symbol>
+
+    <!-- quarter strokes (Din 41091.4) -->
+    <symbol id="quarterStrokesDin41091.4">
+      <use xlink:href="#fiveMinutesStrokesDin41091.4"/>
+      <use xlink:href="#fiveMinutesStrokesDin41091.4" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#fiveMinutesStrokesDin41091.4" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+    <!-- hour stroke (Roman Numerals) -->
+    <symbol id="hourStrokeRomanNumerals">
+      <rect x="98" y="0" width="4" height="4"/>
+    </symbol>
+
+    <!-- minute stroke (Roman Numerals) -->
+    <symbol id="minuteStrokeRomanNumerals">
+      <rect x="98.75" y="0" width="2.5" height="4"/>
+    </symbol>
+
+    <!-- five minutes strokes (Roman Numerals) -->
+    <symbol id="fiveMinutesStrokesRomanNumerals">
+      <use xlink:href="#hourStrokeRomanNumerals"/>
+      <use xlink:href="#minuteStrokeRomanNumerals" transform="rotate( 6, 100, 100)"/>
+      <use xlink:href="#minuteStrokeRomanNumerals" transform="rotate(12, 100, 100)"/>
+      <use xlink:href="#minuteStrokeRomanNumerals" transform="rotate(18, 100, 100)"/>
+      <use xlink:href="#minuteStrokeRomanNumerals" transform="rotate(24, 100, 100)"/>
+    </symbol>
+
+    <!-- quarter strokes (Roman Numerals) -->
+    <symbol id="quarterStrokesRomanNumerals">
+      <use xlink:href="#fiveMinutesStrokesRomanNumerals"/>
+      <use xlink:href="#fiveMinutesStrokesRomanNumerals" transform="rotate(30, 100, 100)"/>
+      <use xlink:href="#fiveMinutesStrokesRomanNumerals" transform="rotate(60, 100, 100)"/>
+    </symbol>
+
+  </defs>
+
+  <!-- clock -->
+  <g id="clock" clip-path="url(#clipCircle)" visibility="hidden">
+
+    <!-- background -->
+    <g id="background" style="fill:none">
+      <circle cx="100" cy="100" r="100" style="stroke:none"/>
+    </g>
+
+    <!-- dial -->
+    <g id="dial" style="fill:#333">
+      <g id="dialPalmerstone" visibility="hidden">
+        <use xlink:href="#quarterStrokesPalmerstone" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesPalmerstone" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesPalmerstone" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesPalmerstone" style="stroke:none" transform="rotate(270, 100, 100)"/>
+        <circle cx="100" cy="100" r="97.5" style="fill:none; stroke-width:5"/>
+        <circle cx="100" cy="100" r="86" style="fill:none; stroke-width:4.1"/>
+        <circle cx="100" cy="100" r="60" style="fill:none; stroke-width:4.1"/>
+        <circle cx="100" cy="100" r="58" style="fill:#56c1a3; stroke:none"/>
+      </g>
+      <g id="dialWandelhalle" visibility="hidden" transform="matrix(0.462331,0,0,0.46431,-36.7893,-96.9708)">
+        <path d="M276.437,627.909C268.496,626.457 266.372,624.64 271.73,623.884C274.625,623.475 274.882,622.362 277.682,598.059C281.248,567.116 281.359,563.376 278.79,560.822C275.712,557.763 276.316,557.379 281.816,558.897C284.69,559.691 293.396,560.007 302.057,559.631L317.254,558.973L313.125,561.469C309.953,563.386 309.155,564.665 309.684,566.977C310.063,568.633 312.519,581.718 315.141,596.054C319.941,622.289 321.107,625.33 326.451,625.546C327.645,625.594 327.135,626.192 325.268,626.933C320.441,628.85 285.407,629.55 276.437,627.909ZM290.625,624.42C292.123,622.774 293.443,616.292 294.911,603.367C296.078,593.095 297.537,580.782 298.153,576.003C298.77,571.224 298.982,566.546 298.624,565.607C297.486,562.618 293.486,561.255 291.051,563.025C289.272,564.318 288.224,570.472 285.885,593.383C284.271,609.188 283.357,623.172 283.854,624.459C285.014,627.462 287.87,627.445 290.625,624.42L290.625,624.42ZM309.672,624.177C311.962,621.663 311.913,620.702 308.46,600.451C306.482,588.843 304.382,577.841 303.795,576.003L302.728,572.661L301.916,576.672C301.47,578.877 300.077,589.856 298.82,601.07C296.626,620.635 296.632,621.566 298.965,624.128C302.056,627.523 306.607,627.544 309.672,624.177L309.672,624.177ZM216.93,614.058C202.697,607.907 186.796,598.709 174.889,589.737C163.332,581.029 162.307,579.74 167.364,580.278C170.85,580.648 172.636,578.756 189.055,557.289C205.267,536.094 206.886,533.482 206.295,529.477L205.644,525.057L210.154,528.994C217.629,535.517 226.29,541.005 239.977,547.891C252.944,554.415 252.962,554.431 247.801,554.857L242.627,555.284L233.549,581.35C228.556,595.686 224.438,608.572 224.398,609.984C224.359,611.397 225.331,613.656 226.559,615.005C227.787,616.354 228.52,617.728 228.187,618.059C227.854,618.39 222.789,616.589 216.93,614.058ZM216.429,605.882C218.756,603.106 233.776,559.726 232.23,560.246C229.638,561.12 204.154,597.936 204.154,600.807C204.154,607.156 212.477,610.597 216.429,605.882ZM215.936,575.335C233.632,551.053 235.558,546.369 228.192,545.52C224.936,545.145 223.444,547.09 209.029,570.498C200.431,584.459 193.396,596.564 193.396,597.398C193.396,598.231 194.741,598.721 196.385,598.486C198.495,598.185 204.244,591.377 215.936,575.335ZM191.411,584.732C204.475,564.433 217.602,541.853 217.602,539.681C217.602,533.9 212.661,538.52 197.699,558.292C176.486,586.324 176.741,585.911 178.555,589.281C181.377,594.521 186.212,592.81 191.411,584.732ZM381.171,607.336C383.369,604.001 383.174,603.245 373.537,577.756C368.097,563.37 362.765,550.722 361.686,549.65C360.608,548.578 358.308,547.971 356.576,548.3C351.836,549.2 352.787,547.393 358.469,544.704C361.243,543.391 366.084,540.593 369.227,538.486C375.157,534.512 376.267,534.718 372.883,539.165C371.797,540.592 370.908,542.178 370.908,542.688C370.908,543.199 379.142,554.062 389.206,566.828C405.731,587.791 407.881,590.02 411.395,589.842C413.535,589.733 415.286,590.044 415.286,590.531C415.286,592.559 384.171,610.7 380.627,610.739C379.385,610.753 379.534,609.818 381.171,607.336ZM397.468,599.693C401.506,596.587 398.994,591.282 384.808,572.951C376.966,562.818 370.245,554.829 369.874,555.199C369.502,555.568 372.672,565.062 376.919,576.296C386.365,601.282 390.008,605.43 397.468,599.693ZM136.901,555.159C125.64,541.074 114.666,522.045 107.053,503.408C100.568,487.531 99.169,482.445 102.478,486.778C103.46,488.064 105.434,489.117 106.864,489.117C108.295,489.117 119.423,484.861 131.595,479.659C161.793,466.752 162.466,466.406 162.466,463.79C162.466,458.867 164.361,460.012 166.58,466.275C171.056,478.909 180.963,497.896 188.452,508.191C192.715,514.052 194.89,517.983 193.444,517.214C192.036,516.464 189.958,515.851 188.826,515.851C187.695,515.851 177.322,524.992 165.776,536.165C145.471,555.812 144.811,556.623 145.617,560.894C146.075,563.322 146.128,565.31 145.733,565.31C145.339,565.31 141.364,560.742 136.901,555.159L136.901,555.159ZM159.974,532.315C169.455,522.99 176.962,515.11 176.655,514.805C176.347,514.5 166.534,519.272 154.847,525.41C137.758,534.385 133.348,537.282 132.322,540.206C131.313,543.079 131.563,544.41 133.516,546.555C138.5,552.029 141.657,550.329 159.974,532.315ZM157.99,519.704C179.886,508.354 181.293,507.394 181.293,503.808C181.293,496.433 177.613,497.458 152.117,511.94C138.948,519.419 127.115,526.46 125.82,527.586C120.951,531.821 124.634,535.33 131.43,532.933C133.222,532.301 145.173,526.348 157.99,519.704ZM145.389,507.189C171.012,492.699 174.68,490.03 172.267,487.63C170.527,485.902 118.088,511.382 116.089,514.927C115.035,516.796 115.318,517.782 117.336,519.271C118.772,520.331 120.098,521.198 120.282,521.198C120.466,521.198 131.765,514.894 145.389,507.189ZM141.622,492.063C158.28,483.607 167.324,478.278 167.607,476.753C167.894,475.209 167.192,474.413 165.545,474.413C161.697,474.413 111.005,496.437 109.541,498.745C107.631,501.754 109.491,505.167 113.003,505.096C114.69,505.062 127.569,499.198 141.622,492.063ZM449.731,555.17C450.466,551.218 449.582,550.266 428.522,532.331C416.435,522.037 405.637,513.297 404.528,512.909C403.418,512.52 401.452,512.744 400.157,513.406C396.663,515.192 397.308,512.765 401.312,509.067C407.45,503.396 416.446,489.836 422.573,477.02C427.687,466.323 428.573,465.132 428.959,468.436C429.381,472.052 430.965,472.954 456.302,484.01C471.095,490.465 484.058,495.758 485.109,495.773C486.161,495.788 488.127,494.805 489.48,493.588C493.449,490.018 492.405,493.132 484.207,509.326C474.789,527.927 465.615,541.79 456.115,551.776C449.212,559.033 448.99,559.151 449.731,555.17ZM462.084,539.811C462.446,536.722 460.021,534.665 438.551,519.844C425.385,510.756 413.404,503.283 411.924,503.237C405.615,503.039 410.355,508.501 431.424,525.7C449.997,540.863 454.27,543.769 457.647,543.534C460.891,543.309 461.76,542.579 462.084,539.811ZM470.966,527.473C472.422,526.414 473.185,524.474 472.904,522.547C472.523,519.938 467.856,516.897 446.889,505.597C432.836,498.023 420.43,491.977 419.321,492.161C418.211,492.345 417.303,493.57 417.303,494.884C417.303,496.517 425.175,502.317 442.182,513.217C455.865,521.987 467.399,529.175 467.812,529.19C468.226,529.205 469.645,528.433 470.966,527.473ZM481.853,507.29C481.853,503.53 481.011,503.037 454.958,491.554C440.165,485.034 427.154,479.872 426.045,480.082C424.935,480.293 424.027,481.521 424.027,482.813C424.027,486.201 472.221,511.872 477.819,511.466C481.308,511.212 481.853,510.648 481.853,507.29ZM92.315,450.237C90.735,446.385 89.647,407.082 91.004,402.899C92.018,399.775 92.331,399.517 92.421,401.733C92.59,405.889 94.698,407.087 107.425,410.259L118.889,413.117L130.928,409.787C137.549,407.955 145.606,405.765 148.831,404.92C152.057,404.076 155.991,401.996 157.573,400.299L160.449,397.214L160.449,420.844C160.449,442.857 160.299,444.291 158.265,441.795C156.09,439.126 155.967,439.125 127.335,441.558C111.524,442.9 97.572,444.525 96.329,445.168C95.086,445.811 93.87,447.691 93.627,449.347C93.282,451.696 92.994,451.892 92.315,450.237L92.315,450.237ZM130.912,433.67C152.625,431.761 157.087,430.948 157.087,428.901C157.087,426.998 154.515,426.032 139.086,422.138L124.139,418.365L108.863,422.601C100.461,424.931 93.271,427.655 92.885,428.655C92.499,429.655 92.874,431.98 93.719,433.823C95.153,436.952 95.723,437.121 102.301,436.37C106.176,435.928 119.051,434.713 130.912,433.67ZM156.624,417.248C158.133,411.273 154.426,410.049 143.888,413.045C138.948,414.449 134.35,415.598 133.669,415.598C130.5,415.598 134.863,417.393 143.201,419.519C153.765,422.212 155.442,421.929 156.624,417.248ZM106.657,416.43L110.692,414.709L103.523,412.989C95.875,411.155 92.806,412.219 94.333,416.177C95.311,418.71 101.036,418.828 106.657,416.43L106.657,416.43ZM498.423,444.691L497.991,441.664L467.086,441.304C437.474,440.959 436.096,441.056 434.139,443.632C432.285,446.072 432.096,444.24 432.096,423.871C432.096,403.133 432.259,401.622 434.236,404.05C436.324,406.613 437.087,406.636 465.166,404.974C481.001,404.036 495.015,402.714 496.31,402.035C497.604,401.356 498.663,399.884 498.663,398.763C498.663,397.643 499.268,397.098 500.008,397.552C501.733,398.612 501.825,445.895 500.104,446.952C499.417,447.374 498.661,446.356 498.423,444.691L498.423,444.691ZM498.466,431.206C501.857,427.145 497.342,426.289 473.179,426.409C444.151,426.553 436.327,427.436 435.711,430.636C435.293,432.809 437.456,432.975 466.125,432.975C490.093,432.975 497.319,432.58 498.466,431.206ZM496.756,417.376C499.124,416.473 499.268,412.105 496.958,411.223C493.787,410.014 437.924,414.118 436.005,415.701C431.448,419.461 436.076,419.989 465.353,419.05C481.576,418.53 495.707,417.776 496.756,417.376L496.756,417.376ZM167.845,367.781C167.845,364.916 165.315,361.574 156.688,353.043L145.531,342.011L130.246,338.025C115.936,334.293 114.802,334.181 112.49,336.261C111.131,337.483 110.019,337.989 110.019,337.385C110.019,335.646 119.249,319.416 123.068,314.44C126.711,309.691 128.715,309.257 126.302,313.738C125.077,316.014 126.17,317.625 134.38,325.641L143.875,334.912L161.867,339.474C177.127,343.342 180.479,343.803 183.938,342.505C186.182,341.663 188.017,341.249 188.017,341.584C188.017,341.919 185.664,345.326 182.789,349.154C179.914,352.982 175.62,359.573 173.247,363.801C170.875,368.028 168.688,371.487 168.389,371.487C168.09,371.487 167.845,369.819 167.845,367.781ZM173.968,356.705C178.438,351.795 174.243,348.764 158.403,345.46L153.725,344.484L161.075,351.97C165.118,356.088 169.109,359.456 169.944,359.456C170.779,359.456 172.59,358.218 173.968,356.705ZM130.632,327.185C124.796,321.384 120.777,320.883 120.777,325.956C120.777,327.982 122.327,329.105 127.165,330.583C136.535,333.447 136.735,333.251 130.632,327.185ZM418.592,363.338C417.144,360.142 413.992,354.279 411.588,350.31C407.141,342.965 405.784,338.783 408.831,341.812C409.719,342.694 411.397,343.416 412.561,343.416C413.725,343.416 425.556,336.616 438.852,328.306C461.056,314.428 463.081,312.84 463.699,308.827C464.359,304.537 464.497,304.672 471.298,316.251C483.361,336.785 484.996,341.076 479.361,337.406C476.333,335.434 475.054,335.93 449.846,348.862C428.86,359.627 423.264,363.068 422.361,365.763C421.252,369.068 421.164,369.011 418.592,363.338ZM447.095,341.939C471.439,329.373 473.235,328.194 472.852,325.03C471.937,317.481 469.313,318.185 446.736,332.038C434.986,339.248 423.405,346.593 421.002,348.359C416.36,351.771 415.208,355.446 418.779,355.446C419.961,355.446 432.703,349.368 447.095,341.939ZM207.782,315.618C209.842,312.051 209.713,311.208 204.951,297.001L199.963,282.121L188.298,271.902C179.518,264.21 175.89,261.825 173.625,262.255C169.353,263.067 170.923,261.285 179.695,255.366C187.698,249.966 211.152,237.816 213.572,237.816C214.382,237.816 214.149,239.086 213.02,240.823C211.189,243.64 211.875,245.357 223.822,267.869C237.721,294.058 239.488,296.617 243.698,296.66C245.25,296.677 240.457,299.858 233.029,303.743C225.612,307.624 216.728,312.724 213.287,315.077C205.638,320.308 205.04,320.367 207.782,315.618ZM219.509,307.85C223.828,306.203 221.664,301.389 213.265,293.957C208.695,289.914 205.292,287.508 205.703,288.611C206.114,289.713 207.799,294.676 209.446,299.639C212.488,308.8 213.932,309.977 219.509,307.85ZM229.994,294.96C228.553,292.571 222.663,281.593 216.907,270.565C203.125,244.163 202.278,243.256 196.068,248.255L193.063,250.674L200.792,274.352L214.812,286.828C229.624,300.011 234.671,302.714 229.994,294.96ZM193.272,261.991C191.203,255.129 188.8,252.883 186,255.193C184.89,256.108 183.983,257.415 183.983,258.098C183.983,259.513 193.718,268.685 194.449,267.959C194.712,267.698 194.182,265.012 193.272,261.991ZM370.219,309.97C369.752,309.22 366.237,306.819 362.407,304.636C356.391,301.207 355.924,300.664 358.977,300.654C360.92,300.648 363.122,299.889 363.87,298.97C367.808,294.133 392.425,250.888 392.425,248.808C392.425,247.467 391.709,245.659 390.833,244.789C389.958,243.919 389.558,242.894 389.943,242.51C390.652,241.806 407.217,251.938 407.217,253.076C407.217,253.414 405.584,253.578 403.588,253.439C400.234,253.207 398.848,255.063 385.312,277.916C372.725,299.165 370.765,303.255 371.374,306.989C372.1,311.432 371.726,312.395 370.219,309.97ZM269.948,287.624C272.497,285.573 273.452,282.786 274.909,273.146C277.504,255.992 277.309,253.886 271.856,240.164C266.112,225.708 265.291,224.462 261.479,224.408C259.096,224.374 258.971,224.162 260.734,223.137C261.898,222.46 269.536,221.186 277.708,220.305C293.159,218.639 323.626,220.185 330.691,222.993L333.927,224.279L330.872,224.364C329.017,224.415 327.333,225.63 326.583,227.456C325.904,229.11 324.012,242.649 322.378,257.542C319.531,283.491 319.507,284.73 321.793,287.241C324.143,289.821 324.069,289.847 316.95,288.902C307.287,287.619 289.155,287.688 276.825,289.054C266.829,290.161 266.803,290.155 269.948,287.624L269.948,287.624ZM286.722,283.878C288.85,281.762 288.299,279.61 281.775,264.55L280.327,261.208L279.809,264.55C277.201,281.364 277.172,282.133 279.075,284.025C281.565,286.499 284.134,286.45 286.722,283.878L286.722,283.878ZM311.67,282.93C313.323,278.854 318.573,227.63 317.597,225.102C316.701,222.781 311.342,221.127 308.379,222.257C306.666,222.91 306.358,227.502 306.358,252.368C306.358,268.505 306.726,282.66 307.175,283.823C308.332,286.822 310.246,286.442 311.67,282.93ZM297.676,224.942C296.851,221.596 292.53,220.14 288.238,221.762C285.56,222.774 285.011,224.396 283.616,235.412L282.033,247.914L287.604,261.245C298.495,287.304 297.565,287.786 297.998,255.861C298.207,240.422 298.062,226.509 297.676,224.942ZM280.546,228.088C280.097,223.609 278.532,222.473 275.462,224.401C273.736,225.484 273.817,226.635 276.084,233.266L278.69,240.885L279.823,236.538C280.447,234.147 280.772,230.344 280.546,228.088Z" style="fill-rule:nonzero;"/>
+      </g>
+      <g id="dialAubigny" visibility="hidden">
+        <path style="stroke:none"
+        d="M 95.369523,188.8063 C 96.201007,185.2538 97.721804,178.28322 98.749071,173.3161 C 100.55729,164.57289 100.78542,163.6944 101.14326,164.09685 C 101.33974,164.3178 106.42265,185.07491 107.68036,190.79243 C 108.15579,192.95374 108.43354,194.83335 108.29756,194.96932 C 108.16159,195.1053 107.0819,195.21654 105.89824,195.21654 H 103.74615 L 103.53107,194.42632 C 103.41279,193.9917 102.66491,190.86772 101.86914,187.48412 C 100.49292,181.6325 99.899827,179.85236 99.485023,180.32828 C 99.383063,180.44528 98.508415,183.7922 97.541359,187.76588 L 95.783077,194.99076 L 94.820406,195.12807 L 93.857734,195.26539 Z M 88.031293,190.06321 C 88.40725,183.91868 90.076663,165.47711 90.375072,164.1721 L 90.607395,163.1561 H 92.604142 C 93.702354,163.1561 94.701738,163.31927 94.824997,163.51871 C 94.948257,163.71816 94.756653,166.91856 94.39921,170.63071 C 94.041769,174.34288 93.442902,180.8345 93.068396,185.05654 C 92.693888,189.2786 92.284014,193.19019 92.157562,193.74898 L 91.927649,194.76498 H 89.835631 H 87.743613 Z M 60.11019,186.83177 C 59.365124,186.44525 58.585504,185.96153 58.377702,185.75682 L 57.999882,185.38463 L 59.581708,180.47926 C 61.464356,174.641 62.692786,169.99989 62.504271,169.43756 C 62.429304,169.21394 59.847208,171.88437 56.76628,175.37183 L 51.16459,181.71268 L 50.52046,181.4655 C 50.166186,181.32955 49.776599,181.21832 49.654707,181.21832 C 49.272086,181.21832 51.217065,178.87533 54.90257,174.89654 C 56.857988,172.78553 61.257032,167.76224 64.678222,163.7337 C 68.099413,159.70516 70.946373,156.45687 71.0048,156.51531 C 71.247265,156.75778 63.823411,183.17695 62.632957,186.30807 C 62.089161,187.73837 61.923903,187.77268 60.11019,186.83177 Z M 138.98412,184.9711 C 138.31975,183.72288 136.03053,176.18984 135.884,174.76963 C 135.81274,174.07894 135.41518,172.85974 135.00055,172.0603 C 134.58592,171.26085 133.87683,169.28597 133.42478,167.67166 C 132.97273,166.05735 131.88261,162.62489 131.00228,160.04397 C 130.12196,157.46306 129.49068,155.26243 129.59943,155.15368 C 129.70816,155.04493 131.38957,156.64693 133.33589,158.71365 C 135.28219,160.78039 138.81646,164.50503 141.1898,166.99062 C 143.56315,169.47621 146.89394,172.97837 148.59155,174.77319 L 151.67815,178.0365 L 151.1268,178.70083 C 150.82357,179.06621 149.88859,179.77041 149.04908,180.26573 L 147.5227,181.16631 L 146.33402,179.72477 C 144.67213,177.70935 137.00825,169.929 136.68731,169.93146 C 136.54198,169.93257 136.38414,170.68085 136.33654,171.59428 L 136.25001,173.25509 L 136.86185,173.73716 C 137.51415,174.2511 140.10028,181.96959 140.34238,184.12505 L 140.48708,185.41337 L 139.95321,185.60107 C 139.65957,185.7043 139.22349,185.4208 138.98412,184.9711 Z M 45.99908,178.45704 C 45.191925,177.94013 44.533457,177.28315 44.535818,176.99708 C 44.53818,176.71103 46.620981,173.28517 49.164262,169.38407 C 51.707546,165.48296 55.393111,159.73607 57.35441,156.61321 C 59.315708,153.49035 61.086149,150.83284 61.288723,150.70764 C 61.491297,150.58244 62.481723,151.0006 63.489669,151.63689 L 65.322298,152.79378 L 64.802717,153.76464 C 62.435977,158.18692 49.522198,177.62518 48.755547,177.91938 C 48.450542,178.03642 48.311503,178.42016 48.44657,178.77214 L 48.692147,179.4121 L 48.079391,179.4045 C 47.742376,179.40031 46.806236,178.97396 45.99908,178.45704 Z M 40.326394,174.82708 L 38.604818,173.94288 L 38.745949,173.34545 C 38.937294,172.53547 55.523718,146.92651 55.866524,146.91179 C 56.608561,146.87991 59.199971,149.08939 59.151479,149.71259 C 59.120899,150.1056 58.124989,151.91957 56.938346,153.74363 C 52.151475,161.10181 42.567699,175.39214 42.316278,175.54652 C 42.168708,175.63714 41.273261,175.31339 40.326394,174.82708 Z M 23.981569,158.26367 C 23.319889,157.2638 22.846941,156.13321 22.930575,155.75125 C 23.014209,155.36928 25.60511,152.51031 28.688132,149.39799 C 31.771153,146.28566 34.208673,143.73922 34.104841,143.73922 C 34.00101,143.73922 32.494537,144.26411 30.757125,144.90565 C 29.019712,145.54719 25.593174,146.78612 23.142597,147.65882 L 18.687002,149.24555 L 17.998625,148.55717 L 17.310248,147.86879 L 18.97606,147.17278 C 19.892257,146.78996 23.629445,145.34179 27.280922,143.95461 C 30.932398,142.56744 36.937469,140.21072 40.625526,138.71747 C 44.313582,137.22422 47.43009,136.10148 47.551101,136.22249 C 47.768485,136.43988 34.864963,150.339 28.480398,156.76464 L 25.184623,160.0816 Z M 173.00008,158.38073 C 172.25557,157.99252 171.34116,157.41902 170.96808,157.10629 C 170.595,156.79357 165.71199,153.73905 160.11697,150.31849 C 154.52195,146.89794 149.56041,143.81867 149.09134,143.47568 L 148.23849,142.85205 L 149.10412,141.23058 C 149.58021,140.33878 150.21226,139.40543 150.5087,139.15648 L 151.04764,138.70384 L 153.66958,140.46394 C 155.11164,141.432 160.96512,145.03281 166.6773,148.46574 C 172.38947,151.89867 177.12351,154.75534 177.19737,154.81392 C 177.38663,154.96398 174.86176,159.09271 174.58281,159.08932 C 174.45682,159.08779 173.74459,158.76893 173.00008,158.38073 Z M 172.32174,149.99484 C 169.46565,148.24077 163.84691,144.89067 159.83565,142.55017 C 155.82439,140.20968 152.31939,138.02596 152.04676,137.69745 L 151.55106,137.10018 L 152.93273,135.19285 L 154.31438,133.28552 L 155.30295,133.9218 C 155.84666,134.27176 161.67632,137.769 168.25774,141.69346 C 174.83916,145.61792 180.31684,148.91108 180.43035,149.0116 C 180.76817,149.31074 178.47661,153.22352 177.97562,153.20299 C 177.72208,153.19259 175.17783,151.74893 172.32174,149.99484 Z M 174.35355,143.31047 C 166.48552,138.61602 157.90129,133.21026 156.45538,132.03943 L 155.44949,131.22491 L 156.75054,129.16839 L 158.0516,127.11186 L 159.88089,128.36034 C 160.887,129.04701 166.68858,132.60182 172.7733,136.25992 C 178.85801,139.91803 183.9801,143.04802 184.15573,143.21547 C 184.54793,143.58939 182.20665,147.34389 181.57845,147.34841 C 181.32999,147.3502 178.07879,145.53312 174.35355,143.31047 Z M 14.842355,143.54976 L 13.872781,141.55409 L 20.735487,137.81529 C 24.509975,135.75894 30.636353,132.3898 34.349661,130.3283 C 38.06297,128.26679 41.334108,126.5801 41.61886,126.5801 C 41.90361,126.5801 42.513609,127.41618 42.974412,128.43807 L 43.812236,130.29603 L 42.930103,130.94338 C 40.907955,132.42729 16.676648,145.54544 15.957751,145.54544 C 15.877549,145.54544 15.375621,144.64739 14.842355,143.54976 Z M 173.6564,135.01099 C 162.91754,128.45056 158.77507,125.77783 158.77507,125.40954 C 158.77507,125.29764 159.31609,124.38856 159.97731,123.38937 L 161.17955,121.57266 L 161.77283,121.80032 C 162.51682,122.08581 186.85476,136.9385 187.39077,137.43414 L 187.78425,137.79798 L 186.48766,139.63007 C 185.77453,140.63771 184.97887,141.4665 184.7195,141.4718 C 184.46015,141.4771 179.48174,138.56973 173.6564,135.01099 Z M 12.115313,138.22574 L 11.190729,136.28855 L 11.718016,135.75892 C 12.008024,135.46763 16.309304,133.10418 21.276415,130.50684 C 26.243525,127.90951 32.300668,124.72232 34.736731,123.42421 C 37.172794,122.1261 39.230616,121.13672 39.30967,121.2256 C 39.388723,121.31449 39.885349,122.24383 40.413283,123.29082 L 41.373161,125.19441 L 37.195009,127.63776 C 34.078794,129.4601 15.667983,139.02684 13.342877,140.03197 C 13.176238,140.104 12.623834,139.2912 12.115313,138.22574 Z M 9.3264615,133.38384 C 9.069577,132.90384 8.6664372,132.00359 8.4305946,131.38327 L 8.0017895,130.25544 L 21.962741,122.99911 C 29.641263,119.00812 36.102394,115.74277 36.320806,115.74277 C 36.539219,115.74277 37.087482,116.56231 37.539168,117.56397 L 38.360415,119.38517 L 37.946414,119.76665 C 37.718714,119.97645 35.703613,121.11299 33.468413,122.29227 C 31.233215,123.47156 27.778815,125.29837 25.791971,126.35186 C 14.787653,132.18674 10.727433,134.25655 10.285845,134.25655 C 10.015068,134.25655 9.583346,133.86382 9.3264615,133.38384 Z M 5.5472308,109.11997 C 5.3816602,108.95438 5.246194,107.95454 5.246194,106.89806 V 104.97719 L 6.4879706,104.75017 C 7.1709492,104.6253 14.282948,104.52398 22.292415,104.52502 L 36.855081,104.5269 V 106.97396 V 109.421 H 21.351674 C 12.8248,109.421 5.7128013,109.28553 5.5472308,109.11997 Z M 163.29063,106.48588 V 104.00233 H 179.3583 H 195.42597 L 195.18299,106.373 C 195.04936,107.67687 194.93091,108.79446 194.91977,108.85655 C 194.90864,108.91863 187.78752,108.96944 179.09507,108.96944 H 163.29063 Z M 29.938618,100.56244 L 24.151044,98.097184 L 14.981333,100.37242 C 9.9379917,101.6238 5.6844007,102.64766 5.5289076,102.64766 C 5.3734144,102.64766 5.246194,101.75815 5.246194,100.67095 V 98.694245 L 5.8807117,98.167641 C 6.229696,97.878009 8.5937575,97.046935 11.13418,96.320809 C 13.674602,95.594681 15.826337,94.927371 15.915813,94.837895 C 16.005288,94.748421 13.844428,93.633827 11.1139,92.361022 L 6.1493044,90.046832 V 89.12236 C 6.1493044,87.863255 6.5423373,87.935025 10.561994,89.928157 C 12.481237,90.879806 15.40277,92.222438 17.054291,92.911785 L 20.057056,94.165141 L 28.671277,92.084624 C 33.409097,90.940341 37.442653,90.003982 37.634733,90.003828 C 37.826813,90.003673 37.914785,91.001475 37.830227,92.221167 L 37.676484,94.438786 L 33.540449,95.443919 C 31.265629,95.996743 29.102182,96.60881 28.732789,96.804069 L 28.061162,97.159083 L 32.458121,99.199851 L 36.855081,101.24062 V 102.16992 C 36.855081,102.68103 36.60108,103.08313 36.290636,103.06345 C 35.980192,103.04379 33.121783,101.91833 29.938618,100.56244 Z M 163.29063,100.16411 V 97.680553 H 179.09507 H 194.89952 V 99.875433 V 102.07031 L 192.52885,102.35506 C 191.22499,102.51167 184.11299,102.64158 176.72441,102.64374 L 163.29063,102.64766 Z M 165.18709,95.960148 L 163.24531,95.820189 L 163.38085,93.57106 L 163.51641,91.321932 L 178.98218,91.093323 L 194.44796,90.864713 V 93.117094 C 194.44796,94.355904 194.24428,95.49536 193.99533,95.649217 C 193.52668,95.938857 168.6211,96.207667 165.18709,95.960148 Z M 157.08058,72.73211 C 156.83285,72.421665 156.30323,71.523674 155.90366,70.736573 L 155.17715,69.305482 L 168.49715,62.000188 C 175.82316,57.982277 182.20638,54.593112 182.68209,54.46871 L 183.54702,54.242524 L 184.53282,56.174839 L 185.51861,58.107152 L 184.67751,58.732179 C 184.2149,59.075945 182.21081,60.230451 180.22396,61.297748 C 178.23712,62.365047 172.40839,65.5014 167.27123,68.267422 C 162.13407,71.033445 157.84096,73.296554 157.73097,73.296554 C 157.62098,73.296554 157.32831,73.042554 157.08058,72.73211 Z M 38.743176,68.190816 L 37.764513,67.149077 L 38.325797,66.583619 L 38.887081,66.01816 L 38.149975,66.29862 L 37.412869,66.579078 L 35.805149,64.617068 L 34.19743,62.655059 L 30.672033,61.853521 C 20.713033,59.589233 17.120902,58.686781 16.209816,58.220171 L 15.207217,57.706694 L 16.359483,55.774424 L 17.51175,53.842155 L 18.265194,54.076905 C 20.032438,54.627525 28.019607,56.092326 28.21102,55.900913 C 28.326237,55.785696 28.051593,55.283779 27.600698,54.785546 C 27.149802,54.287312 26.943653,53.879667 27.142588,53.879667 C 27.341523,53.879667 27.017417,53.406353 26.422351,52.82786 C 24.799749,51.250446 23.885709,50.020087 23.549513,48.960826 C 22.938053,47.034288 24.587477,48.031129 27.13686,51.128866 L 28.775034,53.119398 L 28.186613,53.518361 L 27.598193,53.917324 L 28.298221,53.785607 L 28.998249,53.653889 L 30.781777,55.500773 L 32.565303,57.347655 L 35.500413,57.947764 C 37.114725,58.277822 38.883789,58.83584 39.431667,59.187802 C 39.979546,59.539764 40.645996,59.692887 40.912667,59.528075 C 41.415941,59.217034 48.076755,60.504861 49.038271,61.099111 L 49.585109,61.437075 L 48.407319,63.302814 L 47.229528,65.168555 L 46.219194,65.152692 C 45.663509,65.143968 43.888058,64.846306 42.273747,64.491221 C 38.429441,63.645628 38.253957,63.655683 38.333903,64.716999 C 38.37132,65.213711 38.57226,65.620111 38.780437,65.620111 C 39.109806,65.620111 40.467525,68.333927 40.467525,68.992273 C 40.467525,69.541291 39.658721,69.165369 38.743176,68.190816 Z M 152.81454,65.03617 L 152.06613,63.466723 L 162.5326,57.673891 C 168.28917,54.487833 174.47812,51.009945 176.28585,49.945251 C 178.09358,48.880558 179.65101,48.009445 179.74681,48.009445 C 179.8426,48.009445 180.43196,48.923708 181.05651,50.041139 L 182.19204,52.072833 L 180.30489,53.153296 C 163.60595,62.714046 157.38787,65.99399 155.34116,66.321272 L 153.56297,66.605616 Z M 60.637005,48.61152 C 60.471434,48.445949 60.335968,47.606597 60.335968,46.746292 C 60.335968,45.885987 60.011437,43.125854 59.614788,40.612663 L 58.893609,36.043224 L 52.593324,29.765258 L 46.293039,23.487292 L 46.428282,22.563234 L 46.563524,21.639178 L 48.069939,20.761829 L 49.576355,19.88448 L 53.361851,23.650311 C 55.443873,25.721518 57.264589,27.2989 57.407885,27.155605 C 57.55118,27.012309 57.45582,25.199534 57.195973,23.127215 C 56.936125,21.054896 56.723524,18.592032 56.723524,17.654183 V 15.949003 H 57.305847 H 57.88817 L 58.873244,22.893131 L 59.858318,29.837259 L 62.919365,32.741245 C 64.602941,34.338438 67.634916,37.15718 69.657085,39.005117 C 71.679256,40.853053 73.355657,42.48001 73.382419,42.620576 C 73.409181,42.761141 72.315282,43.338621 70.951529,43.903865 L 68.47198,44.931581 L 65.645752,42.366959 C 64.091327,40.956416 62.508442,39.633612 62.128232,39.427394 L 61.43694,39.052451 L 61.811351,43.374295 C 62.017277,45.751308 62.080736,47.969833 61.95237,48.304348 C 61.700764,48.960023 61.120918,49.095433 60.637005,48.61152 Z M 132.43506,44.797698 L 130.70482,43.886003 L 130.97721,43.176166 C 131.12702,42.785754 133.90972,38.17633 137.161,32.932999 C 140.41227,27.689667 143.97833,21.92647 145.0856,20.125891 C 146.19285,18.325314 147.23675,16.858456 147.40538,16.866208 C 147.57399,16.873958 148.46812,17.345317 149.39234,17.913671 L 151.07271,18.947043 L 143.07056,32.199932 C 138.66938,39.48902 134.86521,45.510548 134.61685,45.581107 C 134.3685,45.651664 133.38669,45.29913 132.43506,44.797698 Z M 72.972111,39.763631 C 70.918083,36.321089 64.232123,24.562302 61.392856,19.398869 L 58.944598,14.946515 L 59.753171,14.352222 C 60.197888,14.025363 61.082262,13.449249 61.718447,13.071971 L 62.875148,12.386013 L 66.428454,18.570174 C 68.382773,21.971463 71.977057,27.953571 74.415753,31.86375 C 76.854449,35.773927 78.849745,39.174104 78.849745,39.419697 C 78.849745,39.665291 77.844874,40.375439 76.6167,40.997802 L 74.383654,42.129372 Z M 103.27775,36.305757 L 102.64443,35.904785 L 102.97234,20.637075 C 103.15269,12.239834 103.39889,5.2097839 103.51943,5.01474 C 103.63998,4.8196962 104.73424,4.6601148 105.95112,4.6601148 H 108.16363 L 108.06935,20.690081 L 107.97508,36.720046 L 105.94308,36.713387 C 104.82547,36.709725 103.62608,36.526291 103.27775,36.305757 Z M 109.15545,26.673447 C 109.18376,21.147536 109.33616,13.984737 109.49411,10.756115 L 109.7813,4.8858927 L 112.09037,4.7515426 L 114.39944,4.6171912 L 114.22632,14.234208 C 114.13111,19.523567 113.93451,26.746825 113.78942,30.285891 L 113.52563,36.720558 H 111.31481 H 109.10396 Z M 96.274083,35.881278 C 96.142289,35.66803 95.521426,33.89003 94.894387,31.930167 C 94.267349,29.970304 93.586668,28.108688 93.381761,27.793244 L 93.009207,27.219706 L 91.19118,31.405688 L 89.373152,35.591668 L 88.337667,35.744293 L 87.302181,35.896916 L 87.572621,35.292737 C 87.721362,34.960439 88.901354,32.117268 90.194824,28.974581 L 92.546588,23.260605 L 91.511064,19.491915 C 90.941527,17.419136 89.891738,13.660903 89.178199,11.140288 C 87.655937,5.7628117 87.684292,6.0147823 88.601407,6.0147823 C 88.997709,6.0147823 89.910116,5.667348 90.628975,5.2427068 L 91.935995,4.4706325 L 92.330899,4.9040405 C 92.548096,5.1424149 93.28539,7.3694485 93.969329,9.8530031 C 94.653267,12.336559 95.352818,14.522462 95.523885,14.710567 C 95.694952,14.898672 96.874374,12.815872 98.144824,10.082123 L 100.45474,5.1116706 H 101.21522 H 101.9757 L 101.73333,5.6761148 C 101.60003,5.9865596 100.35827,9.0535624 98.973865,12.491676 L 96.456763,18.742793 L 98.942143,27.14727 C 100.3091,31.769731 101.42752,35.71313 101.42752,35.910374 C 101.42752,36.3967 96.575702,36.369306 96.274083,35.881278 Z"/>      
+       </g>
+      <g id="dialBauhaus" visibility="hidden">
+        <use xlink:href="#quarterStrokesBauhaus" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesBauhaus" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesBauhaus" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesBauhaus" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialAustria" visibility="hidden">
+        <use xlink:href="#quarterStrokesAustria" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesAustria" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesAustria" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesAustria" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialVienna" visibility="hidden">
+        <use xlink:href="#quarterStrokesVienna" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesVienna" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesVienna" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesVienna" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialPoints" visibility="hidden">
+        <use xlink:href="#quarterStrokesPoints" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesPoints" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesPoints" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesPoints" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialDin41091.1" visibility="hidden">
+        <use xlink:href="#quarterStrokesDin41091.1" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesDin41091.1" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.1" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.1" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialDin41091.3" visibility="hidden">
+        <use xlink:href="#quarterStrokesDin41091.3" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesDin41091.3" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.3" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.3" style="stroke:none" transform="rotate(270, 100, 100)"/>
+      </g>
+      <g id="dialDin41091.4" visibility="hidden">
+        <use xlink:href="#quarterStrokesDin41091.4" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesDin41091.4" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.4" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesDin41091.4" style="stroke:none" transform="rotate(270, 100, 100)"/>
+        <g text-anchor="middle" letter-spacing="-2" font-family="sans-serif" font-size="24px" style="stroke:none">
+          <text x="100" y="30">12</text>
+          <text x="143" y="41">1</text>
+          <text x="171" y="70">2</text>
+          <text x="182" y="109">3</text> 
+          <text x="171" y="147">4</text>
+          <text x="142" y="176">5</text>
+          <text x="100" y="188">6</text>
+          <text x="60" y="176">7</text>
+          <text x="30" y="147">8</text>
+          <text x="18" y="109">9</text>
+          <text x="34" y="70">10</text>
+          <text x="61" y="41">11</text>
+        </g>
+      </g>
+      <g id="dialRomanNumerals" visibility="hidden">
+        <use xlink:href="#quarterStrokesRomanNumerals" style="stroke:none"/>
+        <use xlink:href="#quarterStrokesRomanNumerals" style="stroke:none" transform="rotate( 90, 100, 100)"/>
+        <use xlink:href="#quarterStrokesRomanNumerals" style="stroke:none" transform="rotate(180, 100, 100)"/>
+        <use xlink:href="#quarterStrokesRomanNumerals" style="stroke:none" transform="rotate(270, 100, 100)"/>
+        <g text-anchor="middle" letter-spacing="-3" font-family="serif" font-size="20px" font-weight="600" style="stroke:none">
+          <text x="100" y="19" transform="scale(1 1.6)">XII</text>
+          <text x="100" y="19" transform="rotate( 30, 100, 100) scale(1 1.6)">I</text>
+          <text x="100" y="19" transform="rotate( 60, 100, 100) scale(1 1.6)">II</text>
+          <text x="100" y="19" transform="rotate( 90, 100, 100) scale(1 1.6)">III</text>
+          <text x="100" y="19" transform="rotate(120, 100, 100) scale(1 1.6)">IIII</text>
+          <text x="100" y="19" transform="rotate(150, 100, 100) scale(1 1.6)">V</text>
+          <text x="100" y="19" transform="rotate(180, 100, 100) scale(1 1.6)">VI</text>
+          <text x="100" y="19" transform="rotate(210, 100, 100) scale(1 1.6)">VII</text>
+          <text x="100" y="19" transform="rotate(240, 100, 100) scale(1 1.6)">VIII</text>
+          <text x="100" y="19" transform="rotate(270, 100, 100) scale(1 1.6)">IX</text>
+          <text x="100" y="19" transform="rotate(300, 100, 100) scale(1 1.6)">X</text>
+          <text x="100" y="19" transform="rotate(330, 100, 100) scale(1 1.6)">XI</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- hour hand -->
+    <g id="shadowHourHand" filter="url(#dropShadow)" opacity="0" transform="translate(0, 0)">
+      <use xlink:href="#hourHand"/>
+    </g>
+    <g id="hourHand">
+      <g id="hourHandBauhaus" visibility="hidden">
+        <polygon points="95,32 105,32 106.5,126 93.5,126" style="stroke:none"/>
+      </g>
+      <g id="hourHandPalmerstone" visibility="hidden">
+        <circle cx="100" cy="100" r="8"/>
+        <g transform="matrix(1,0,0,0.733333,0,26.6667)">
+            <rect x="98" y="40" width="4" height="60" style="stroke:black;stroke-width:0.57px;"/>
+        </g>
+        <g transform="matrix(0.944941,-6.74275e-18,6.74275e-18,-1,32.0833,82.3346)">
+            <path d="M71.874,24.335C72.291,28.152 71.902,41.752 71.874,44.835C70.505,42.164 70.132,41.289 67.993,38.904C66.239,36.946 66.161,36.975 62.875,33.789C59.19,30.217 59.348,25.847 61.917,23.789C63.216,22.748 64.758,22.472 66.708,22.789C69.568,23.255 69.964,23.856 71.874,24.335Z"/>
+        </g>
+        <g transform="matrix(-0.944941,-6.74275e-18,-6.74275e-18,-1,167.908,82.3346)">
+            <path d="M71.864,24.335C72.281,28.152 71.85,42.218 71.864,44.835C70.495,42.164 70.132,41.289 67.993,38.904C66.239,36.946 66.161,36.975 62.875,33.789C59.19,30.217 59.348,25.847 61.917,23.789C63.216,22.748 64.758,22.472 66.708,22.789C69.568,23.255 69.955,23.856 71.864,24.335Z"/>
+        </g>
+      </g>
+      <g id="hourHandGerman" visibility="hidden">
+        <rect x="95" y="40" width="10" height="65" style="stroke:none"/>
+      </g>
+      <g id="hourHandSiemens" visibility="hidden">
+        <rect x="97.3" y="65" width="5.4" height="35" style="stroke:none"/>
+        <circle cx="97.3" cy="58.5" r="9" style="stroke:none"/>
+        <circle cx="102.7" cy="58.5" r="9" style="stroke:none"/>
+        <path d="M 88.3,58.5 Q 88.3,52 100,37.5 Q 111.7,52 111.7,58.5 Z" style="stroke:none"/>
+        <path d="M 93.5,123 Q 100,125.5 106.5,123 Q 103,116 102.7,100 L 97.3,100 Q 97.3,116 93.5,123 Z" style="stroke:none"/>
+        <circle cx="100" cy="100" r="7.4" style="stroke:none"/>
+      </g>
+      <g id="hourHandSiemens2" visibility="hidden">
+        <path d="M 100,36 Q 120,60 103,64 L 103,100 Q 104,120 107,124 Q 100,127 93,124 Q 96,120 97,100 L 97,64 Q 80,60 100,36 Z" 
+              style="stroke:none"/>
+      </g>
+      <g id="hourHandDin41092.3" visibility="hidden">
+        <polygon points="94,46 100,40 106,46 106,118 94,118" style="stroke:none"/>
+      </g>
+      <g id="hourHandBigBang" visibility="hidden">
+        <path d="M 100,38 L 93,114 L 100,107 L 107,114 Z" style="stroke:none"/>
+        <path d="M 100,93 L 86,100 L 100,107 L 114,100 Z" style="stroke:none"/>
+      </g>
+      <g id="hourHandWandelhalle" visibility="hidden">
+        <path d="M 100.5,35 C 100.5,45 107.5,47 107.5,53.5 L 102.5,53.5 L 102.5,55 C 116,50 116,70 102.5,65 
+                 L 102.5,132 L 97.5,132 L 97.5,65 C 84,70 84,50 97.5,55 L 92.5,53.5 C 92.5,47 99.5,45 99.5,35 
+                 M 110.5,58.5 A 4 2.5 0 1 0 110.5,58.51 M 97.5,58.5 A 4 2.5 0 1 0 97.5,58.51 Z" 
+              style="stroke:none" fill-rule="evenodd"/>
+        <ellipse cx="100" cy="53.5" rx="7.5" ry="7.5" style="stroke:none"/>
+        <ellipse cx="100" cy="62.5" rx="4.5" ry="4.5" style="stroke:none"/>
+        <ellipse cx="104.5" cy="129.5" rx="3.5" ry="3.5" style="stroke:none"/>
+        <ellipse cx="95.5" cy="129.5" rx="3.5" ry="3.5" style="stroke:none"/>
+        <ellipse cx="100" cy="134.5" rx="4.5" ry="4.5" style="stroke:none"/>      </g>
+      <g id="hourHandZurichEnge" visibility="hidden">
+        <ellipse cx="100" cy="124" rx="4" ry="4" style="stroke:none"/>
+        <path d="M 102.5,62 L 102.5,124 L 97.5,124 L 97.5,62 Z" style="stroke:none"/>
+        <path d="M 100.7,30 L 102,46 L 100,50 L 98,46 Z" style="stroke:none"/>
+        <path d="M 110 55 A 10 10 0 1 0 110 55.01 Z M 93 53.5 A 7 7 0 1 0 93 53.01 Z" 
+              style="stroke:none" fill-rule="evenodd"/>
+      </g>
+      <g id="hourHandAubigny" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="7.5" ry="7.5" style="stroke:none"/>
+        <path d="M 102,26 L 102.8,43 L 106,40 C 103,49 113,56 109,61 L 111,63 Q 102,64 105,69 C 102.5,69 102.5,95 104,95 
+                 L 106,95 Q 101,99 107.5,100 L 92.5,100 Q 99,99 94,95 L 96,95 C 97.5,95 97.5,69 95,69 Q 98,64 89,63 L 91,61 
+                 C 87,56 97,49 94,40 L 97.2,43 L 98,26 Q 100,25 102,26 M 100,59 L 102.8,63 L 101.5,68 L 98.5,68 L 97.2,63 
+                 M 100,56 L 102.9,52 L 101.4,45 L 98.6,45 L 97.1,52
+                 M 107.5 57.5 A 2.5 2.5 0 1 0 107.5 57.51 M 97.5 57.5 A 2.5 2.5 0 1 0 97.5 57.51
+                 Z" style="stroke:none" fill-rule="evenodd"/>
+      </g>
+      <g id="hourHandOttensen" visibility="hidden">
+        <path d="M 102.2,38 L 102.5,50 Q 102.5,56 110,64 Q 103,72 103,78 L 103.5,100 Q 103.5,120 108,129 
+                 L 107.5,130 Q 100,123 92.5,130 L 92,129 Q 96.5,120 96.5,100 L 97,78 Q 97,72 90,64 
+                 Q 97.5,56 97.5,50 L 97.8,38 Q 100,34 102.2,38 M 100,55 Q 100,58 95,64 Q 100,70 100,73 
+                 Q 100,70 105,64 Q 100,58 100,55 Z" style="stroke:none"/>
+      </g>
+      <g id="hourHandNewYork" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="8" ry="8" style="stroke:none"/>
+        <path d="M 101,22 Q 103.2,36 109.5,37.8 L 110,43 Q 103.2,43 103.2,39.5 L 104.4,73.5 L 107,73.5 
+                 L 107,76 L 109.3,76 L 109.3,79 L 107,79 L 107,81.5 L 104.5,81.5 L 104.8,100 L 104.5,118.5 
+                 L 107,118.5 L 107,121 L 109.3,121 L 109.3,124 L 107,124 L 107,126.5 L 105,126.5 L 105,135 
+                 L 102,148 Q 100,150 98,148 L 95,135 L 95,126.5 L 93,126.5 L 93,124 L 90.7,124 L 90.7,121 
+                 L 93,121 L 93,118.5 L 95.5,118.5 L 95.2,100 L 95.5,81.5 L 93,81.5 L 93,79 L 90.7,79 
+                 L 90.7,76 L 93,76 L 93,73.5 L 95.6,73.5 L 96.8,39.5 Q 96.8,43 90,43 L 90.5,37.8 Q 96.8,36 99,22 Z" 
+              style="stroke:none"/>
+      </g>
+      <g id="hourHandSamurai" visibility="hidden">
+        <path d="M 97,34 Q 99,35 103,31 Q 102,70 103,110 Q 101,110 97,112 Q 101,75 97,34 Z" style="stroke:none"/>
+      </g>
+      <g id="hourHandWestminster" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="6" ry="6" style="stroke:none"/>
+        <ellipse cx="103.5" cy="79.6" rx="1.6" ry="1.6" style="stroke:none"/>
+        <ellipse cx="96.5" cy="79.6" rx="1.6" ry="1.6" style="stroke:none"/>
+        <path d="M 103.5,52 L 102.5,55 Q 115,68 104.5,70 L 103.5,70 L 103.5,80 Q 103.5,86 107.5,86 L 107.5,87 
+                 Q 103.5,87 103.5,93 L 103.5,100 C 103.5,118 106.5,108 106.5,116 Q 106.5,120 100,122 Q 93.5,120 93.5,116 
+                 C 93.5,108 96.5,118 96.5,100 L 96.5,93 Q 96.5,87 92.5,87 L 92.5,86 Q 96.5,86 96.5,80 L 96.5,70 L 95.5,70 
+                 Q 85,68 97.5,55 L 96.5,52 Q 100,44 103.5,52 Z" style="stroke:none"/>
+      </g>
+      <g id="hourHandVienna" visibility="hidden">
+        <path d="M 98,28 L 92,44 L 85,55 L 94,70 L 97,100 L 90,120 L 95,123 L 97,120 L 103,120 L 105,123 L 110,120 L 103,100 L 106,70 
+                 L 115,55 L 108,44 L 102,28 Z" style="stroke:none"/>
+      </g>
+    </g>
+
+    <!-- minute hand -->
+    <g id="shadowMinuteHand" filter="url(#dropShadow)" opacity="0" transform="translate(0, 0)">
+      <use xlink:href="#minuteHand"/>
+    </g>
+    <g id="minuteHand">
+      <g id="minuteHandBauhaus" visibility="hidden">
+        <polygon points="96.5,7 103.5,7 105,125 95,125" style="stroke:none"/>
+      </g>
+      <g id="minuteHandPalmerstone" visibility="hidden">
+        <circle cx="100" cy="100" r="8"/>
+        <g transform="matrix(-1,0,0,1,200,0)">
+            <path d="M100,10L98,40L98,100L100,100L100,10Z" style="stroke:black;stroke-width:0.5px;"/>
+        </g>
+        <path d="M100,10L98,40L98,100L100,100L100,10Z" style="stroke:black;stroke-width:0.5px;"/>
+      </g>
+      <g id="minuteHandGerman" visibility="hidden">
+        <rect x="96" y="6" width="8" height="99" style="stroke:none"/>
+      </g>
+      <g id="minuteHandSiemens" visibility="hidden">
+        <polygon points="95.3,49 99.5,2 100.5,2 104.7,49 102.7,100 97.3,100" style="stroke:none"/>
+        <path d="M 93.5,123 Q 100,125.5 106.5,123 Q 103,116 102.7,100 L 97.3,100 Q 97.3,116 93.5,123 Z" style="stroke:none"/>
+        <circle cx="100" cy="100" r="7" style="stroke:none"/>
+      </g>
+      <g id="minuteHandSiemens2" visibility="hidden">
+        <path d="M 100,5 Q 108,55 102.8,100 Q 104,120 107,124 Q 100,127 93,124 Q 96,120 97.2,100 Q 92,55 100,5 Z" style="stroke:none"/>
+      </g>
+      <g id="minuteHandDin41092.3" visibility="hidden">
+        <polygon points="95.5,11.5 100,7 104.5,11.5 104.5,122 95.5,122" style="stroke:none"/>
+      </g>
+      <g id="minuteHandBigBang" visibility="hidden">
+        <path d="M 100,18 Q 94,50 96,103 Q 100,85 104,103 Q 106,50 100,18 Z" style="stroke:none"/>
+      </g>
+      <g id="minuteHandZurichEnge" visibility="hidden">
+        <ellipse cx="100" cy="130" rx="4" ry="4" style="stroke:none"/>
+        <path d="M 100,0 Q 100,2 106,7 Q 101.8,7 102.3,5 L 102.3,130 L 97.7,130 L 97.7,5 Q 98.2,7 94,7 Q 100,2 100,0 Z" style="stroke:none"/>      
+      </g>
+      <g id="minuteHandOttensen" visibility="hidden">
+        <path d="M 102.2,4 L 102.5,26 Q 102.5,32 110,40 Q 103,48 103,54 L 103.5,100 Q 103.5,120 108,129 L 107.5,130 
+                 Q 100,123 92.5,130 L 92,129 Q 96.5,120 96.5,100 L 97,54 Q 97,48 90,40 Q 97.5,32 97.5,26 L 97.8,4 
+                 Q 100,0 102.2,4 M 100,31 Q 100,34 95,40 Q 100,46 100,49 Q 100,46 105,40 Q 100,34 100,31 Z" style="stroke:none"/>
+      </g>
+      <g id="minuteHandWandelhalle" visibility="hidden">
+        <path d="M 100.5,5 C 100,35 110,35 102.5,46 L 102.5,132 L 97.5,132 L 97.5,46 C 90,35 100,35 99.5,5 Z" style="stroke:none"/>
+        <ellipse cx="104.5" cy="129.5" rx="3.5" ry="3.5" style="stroke:none"/>
+        <ellipse cx="95.5" cy="129.5" rx="3.5" ry="3.5" style="stroke:none"/>
+        <ellipse cx="100" cy="134.5" rx="4.5" ry="4.5" style="stroke:none"/>      
+      </g>
+      <g id="minuteHandNewYork" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="6" ry="6" style="stroke:none"/>
+        <path d="M 101,0 L 102.2,15 L 103,15 L 103,13 L 106,13 L 106,15 Q 100,20 107,25 
+                 L 107,27 L 103,27 L 103,25 L 102.2,25 L 102.7,69 L 105,69 L 105,71 L 107,71 
+                 L 107,74 L 105,74 L 105,76 L 102.7,76 L 103,100 L 102,147 Q 100,150 98,147 
+                 L 97,100 L 97.3,76 L 95,76 L 95,74 L 93,74 L 93,71 L 95,71 L 95,69 L 97.3,69 
+                 L 97.8,25 L 97,25 L 97,27 L 93,27 L 93,25 Q 100,20 94,15 L 94,13 L 97,13 
+                 L 97,15 L 97.8,15 L 97.8,15 L 99,0 Z" style="stroke:none"/>      
+      </g>
+      <g id="minuteHandSamurai" visibility="hidden">
+        <path d="M 97.5,10 Q 101.5,10 102.5,8 Q 109,40 102,110 Q 101,110 98,112 Q 108,50 98,10 Z" style="stroke:none"/>
+      </g>
+      <g id="minuteHandWestminster" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="5" ry="5" style="stroke:none"/>
+        <path d="M 102,3 L 103.5,100 Q 104,115 107,118 L 107.4,122 Q 103,121 100,125 Q 97,121 92.6,122 L 93,118 
+                 Q 96,115 96.5,100 L 98,3 Q 100,0 102,3 Z" style="stroke:none"/>
+      </g>
+      <g id="minuteHandAubigny" visibility="hidden">
+        <ellipse cx="100" cy="100" rx="7.5" ry="7.5" style="stroke:none"/>
+        <path d="M 102.4,5 L 102.8,30 L 106,30 C 103,36 113,43 109,48 L 111,50 Q 102,51 105,59 C 102.5,59 102.5,85 104,85 L 106,85 
+                 Q 101,89 107.5,100 L 92.5,100 Q 99,89 94,85 L 96,85 C 97.5,85 97.5,59 95,59 Q 98,51 89,50 L 91,48 
+                 C 87,43 97,36 94,30 L 97.2,30 L 97.6,5 Q 100,3 102.4,5 M 100,46 L 102.8,50 L 101.5,55 L 98.5,55 L 97.2,50 
+                 M 100,43 L 102.8,39 L 101.5,34 L 98.5,34 L 97.2,39
+                 M 107.5 44.5 A 2.5 2.5 0 1 0 107.5 44.51 M 97.5 44.5 A 2.5 2.5 0 1 0 97.5 44.51 Z" 
+              style="stroke:none" fill-rule="evenodd"/>
+      </g>
+      <g id="minuteHandVienna" visibility="hidden">
+        <path d="M 98,2 L 91,30 L 97,100 L 95,120 L 99,140 L 101,140 L 105,120 L 103,100 L 109,30 L 102,2 Z" style="stroke:none"/>
+      </g>
+    </g>
+
+    <!-- second hand -->
+    <g id="shadowSecondHand" filter="url(#dropShadow)" opacity="0" transform="translate(0, 0)">
+      <use xlink:href="#secondHand"/>
+      <use xlink:href="#axisCover"/>
+    </g>
+    <g id="secondHand">
+      <g id="secondHandBar" visibility="hidden">
+        <line x1="100" y1="5" x2="100" y2="100" style="stroke-width:3.5; stroke-linecap:butt"/>
+      </g>
+      <g id="secondHandBauhaus" visibility="hidden">
+        <line x1="100" y1="40" x2="100" y2="135" style="stroke-width:3.5; stroke-linecap:butt"/>
+        <!--<circle cx="100" cy="34" r="10" style="stroke:none"/>-->
+        <path d="M 90,34 a 10,10 0 1 0 20,0 M 110,34 a 10,10 0 1 0 -20,0
+                 M 94,30 a 6,6 0 1 0 12,0 M 106,30 a 6,6 0 1 0 -12,0 Z" 
+              style="stroke:none" fill-rule="evenodd"/>>
+      </g>
+      <g id="secondHandGerman" visibility="hidden">
+        <polygon points="98,4 102,4 102.3,36 97.7,36" style="stroke:none"/>
+        <circle cx="100" cy="45" r="10" style="fill:none; stroke-width:4"/>
+        <polygon points="97.5,56 102.5,55 103,102 97,102" style="stroke:none"/>
+      </g>
+      <g id="secondHandDin41071.1" visibility="hidden">
+        <polygon points="99.4,8 100.6,8 102.8,123 97.2,123" style="stroke:none"/>
+      </g>
+      <g id="secondHandDin41071.2" visibility="hidden">
+        <polygon points="98.8,11 100,9.8 101.2,11 101.6,42 98.4,42" style="stroke:none"/>
+        <polygon points="98.1,58 101.9,58 102.5,122 97.5,122" style="stroke:none"/>
+        <circle cx="100" cy="50" r="8.5" style="fill:none; stroke-width:6.5"/>
+      </g>
+      <g id="secondHandBigBang" visibility="hidden">
+        <path d="M 100,10 L 101.5,42 L 105,40 L 100,70 L 98.5,50 L 95,52 Z" style="stroke:none"/>
+      </g>
+      <g id="secondHandWandelhalle" visibility="hidden">
+        <path d="M 100.5,18 C 100,45 110,45 102,46 L 102,132 L 98,132 L 98,46 C 90,45 100,45 99.5,18 Z" style="stroke:none"/>
+        <ellipse cx="103.5" cy="128.5" rx="2.5" ry="2.5" style="stroke:none"/>
+        <ellipse cx="96.5" cy="128.5" rx="2.5" ry="2.5" style="stroke:none"/>
+        <ellipse cx="100" cy="132.5" rx="3.5" ry="3.5" style="stroke:none"/>
+      </g>
+      <g id="secondHandSamurai" visibility="hidden">
+        <path d="M 98.5,10 Q 101,7 101.5,8 Q 106,50 101.5,110 Q 100.5,110 96.5,112 Q 101.5,70 99,10 Z" style="stroke:none"/>      
+      </g>
+      <g id="secondHandSwiss" visibility="hidden">
+        <line x1="100" y1="34" x2="100" y2="135" style="stroke-width:3.5; stroke-linecap:butt"/>
+        <circle cx="100" cy="34" r="10" style="stroke:none"/>
+      </g>
+    </g>
+
+    <!-- axis cover -->
+    <g id="axisCover">
+      <circle id="axisCoverCircle" cx="100" cy="100" r="10" style="stroke:none" visibility="hidden"/>
+      <polyline id="axisCoverHexagon" points="" style="stroke:none" visibility="hidden"/>
+      <polyline id="axisCoverOctagon" points="" style="stroke:none" visibility="hidden"/>
+    </g>
+
+  </g>
+
+</svg>
